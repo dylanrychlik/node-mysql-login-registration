@@ -298,7 +298,7 @@ exports.login = function (req, res) {
 
    if (req.method == "POST") {
       var post = req.body;
-      var Email = post.user_name;
+      var Email = post.email;
       var Pass = post.password;
       var connection = snowflake.createConnection({
          account: 'kaa75937.us-east-1',

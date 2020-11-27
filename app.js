@@ -1,4 +1,5 @@
-var snowflake = require('snowflake-sdk');
+//var snowflake = require('snowflake-sdk');
+const mysql = require('mysql');
 //var path = require("path");
 var cookieParser = require("cookie-parser");
 var logger = require("morgan");
@@ -12,28 +13,10 @@ const session = require('express-session');
 const app = express();
 var cors = require("cors");
 let bodyParser=require("body-parser");
-var connection = snowflake.createConnection( {
-  account: 'kaa75937.us-east-1',
-  username: 'srvconfig',
-  password: 'srvconfig$1',
-  database: 'MAHITIX'
-  }
-);
 
-connection.connect( 
-  function(err, conn) {
-      if (err) {
-          console.error('Unable to connect: ' + err.message);
-          } 
-      else {
-          console.log('Successfully connected to Snowflake test account.');
-          // Optional: store the connection ID.
-          connection_ID = conn.getId();
-          }
-      }
-  );
- 
 
+const httpProxy = require('http-proxy');
+const proxy = httpProxy.createServer({});
 
 
 app.use(cors());
@@ -44,7 +27,16 @@ app.use(cookieParser());
 // add middlewares
 app.use(express.static(path.join(__dirname, "..", "build")));
 app.use(express.static("public"));
+app.use(
+session({
+    resave: false,
+    saveUninitialized: true,
+    secret: "anyrandomstring",
+  })
+);
 
+
+/*
 
 //set default engine, and provide [handlebars as] extension
 app.set('view engine', 'handlebars'); 
@@ -68,4 +60,101 @@ app.get('/verification/', user.verify);
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}.`);
+});*/
+
+let connection = mysql.createConnection({
+     host: 'cloud19.hostgator.com',
+    user: 'uzaqleuw_root',
+    password: '3Hotdogs!',
+    database: 'uzaqleuw_Simpledatabase'
+});
+
+connection.connect(function(err) {
+  if (err) {
+    return console.error('error: ' + err.message);
+  }
+
+  console.log('Connected to the MySQL server.');
+});
+
+
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "http://localhost:3000"); // update to match the domain you will make the request from
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
+   var userId = 0;
+app.get('/dashboard', (req, res, next) => {
+  console.log("dashboard session",req.sessionID);
+    // userId = req.sessionID;
+   console.log('ddd=' + userId);
+  
+   if (userId == null) {
+      res.redirect("/login");
+      return;
+   }
+   
+   var sql = "SELECT * FROM `Accounts` WHERE `ID`='" + userId + "'";
+connection.query(sql, [userId], function (err,  result, fields) {
+ if (err) {
+            console.error('Failed to execute statement due to the following error: ' + err.message);
+         }
+         else {
+
+           // res.redirect('http://localhost:3001/dashboard');
+            res.sendFile(path.join(__dirname, './client/src/components/dashboard.html'));
+         }
+         });
+   });
+   
+     
+    
+
+
+app.get('/login', (req, res) => {
+ res.json({ data: "respond with a resource" });
+});
+app.post('/login', (req, res) => {
+// res.json({ data: "respond with a resource" });
+//Login goes here
+ var message = '';
+  var sess = req.session;
+   console.log('sess',sess);
+   if (req.method == "POST") {
+      var post = req.body;
+      var Email = post.email;
+      var Pass = post.password;
+
+      console.log('Body',post);
+  
+
+var sql = 'select `ID`, `EMAIL`,`PASSWORD` from `Accounts` where `EMAIL` = ? and `PASSWORD` = ?;';
+connection.query(sql, [Email,Pass], function (err,  result, fields) {
+  if (err) {
+               console.error('Failed to execute statement due to the following error: ' + err.message);
+            }
+            else {
+               console.log('Successfully executed statement: ');
+            console.log("Total Records:- " + result.length);
+               if (result.length < 1) {
+                  message = 'Wrong Credentials.';
+                //  res.use('index.ejs', { message: message });
+               } else {
+                  console.error('login successful');
+                  //sess.userId = result.ID;
+                userId = result[0].ID;
+                  console.log('ID:', userId);
+                  res.redirect('/dashboard');
+               }
+            }
+         });
+   }
+});
+
+
+app.get('/', (req, res) => {
+ res.json({ data: "respond with a resource" });
+});
+app.listen(3001, () => {
+    console.log('running on port 3001');
 });
